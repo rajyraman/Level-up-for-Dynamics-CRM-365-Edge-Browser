@@ -1,0 +1,50 @@
+{
+    "author": "Natraj Yegnaraman",
+    "background": {
+        "page": "background.html",
+        "persistent": true
+    },
+    "icons" : {
+        "128" : "icon-128.png",
+        "16" : "icon-16.png",
+        "48" : "icon-48.png"
+    },
+    "browser_action": {
+       "default_icon" : 
+        {   
+            "20" : "icon-20.png",
+            "40" : "icon-40.png"
+        },        
+        "default_title": "Level up for Dynamics CRM/365",
+        "default_popup": "options.html"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "http://*/*",
+                "https://*/*"
+            ],
+            "js": [
+                "app.js"
+            ]
+        }
+    ],
+    "description": "Quickly perform advanced/hidden actions in Dynamics CRM, without bookmarklets.",
+    "manifest_version": 2,
+    "name": "Level up for Dynamics CRM/365",
+    "permissions": [
+        "activeTab",
+        "tabs",
+        "http://*/*",
+        "https://*/*"
+    ],
+    "version": "1.0",
+    "version_name": "1.0 beta",
+    "web_accessible_resources": [
+        "crmmethods.js"
+    ],
+    "-ms-preload": {
+        "backgroundScript": "backgroundScriptsAPIBridge.js",
+        "contentScript": "contentScriptsAPIBridge.js"
+    }
+}

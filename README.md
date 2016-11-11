@@ -4,8 +4,11 @@ Edge Extension for Dynamics CRM/365 Power users
 ![Level up extension screenshot](/screenshots/Screenshot Main.png "Screenshot")
 
 # Usage
-Afte downloading the source as a zip file, extract the zip file into a folder. Then Install the extension by enabling "Developer features".
-Refer https://developer.microsoft.com/en-us/microsoft-edge/platform/documentation/extensions/guides/adding-and-removing-extensions/
+After downloading the source as a zip file, extract the zip file into a folder. Then Install the extension by enabling "Developer features".
+Refer https://developer.microsoft.com/en-us/microsoft-edge/platform/documentation/extensions/guides/adding-and-removing-extensions/. After installing
+the extension use the "Show button next to address bar" functionality to see the extension button.
+
+![Show extension button](/screenshots/Show extension button.png "Show extension button")
 
 # Detailed Functionality
 

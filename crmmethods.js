@@ -4,7 +4,7 @@ class LevelUp {
         "Accept" : "application/json",
         "Content-Type" : "application/json; charset=utf-8",
       });
-      let serviceUrl = `${this.clientUrl}/XRMServices/2011/OrganizationData.svc/${entity}?$select=${attributes}`;
+      let serviceUrl = `${this.clientUrl}/XRMServices/2011/OrganizationData.svc/${entity}`;
       if(this.is2016) {
           headers = new Headers({
             "Accept" : "application/json",
@@ -12,8 +12,11 @@ class LevelUp {
             "OData-MaxVersion" : "4.0",
             "OData-Version" : "4.0"
           });
-          serviceUrl = `/api/data/v8.0/${entity}?$select=${attributes}`;
+          serviceUrl = `/api/data/v8.0/${entity}`;
       }
+      if(attributes){
+        serviceUrl += `?$select=${attributes}`;
+      }      
       if(filter) {
         serviceUrl += `&$filter=${filter}`;
       }
@@ -37,7 +40,7 @@ class LevelUp {
 
   messageExtension(message, category) {
        let levelUpEvent = new CustomEvent('levelup', { 'detail': { type: 'page', category: category, content: message} });
-       levelUpEvent.initEvent('levelup');
+       levelUpEvent.initEvent('levelup', false, false);
        document.dispatchEvent(levelUpEvent);
   }
     
@@ -150,6 +153,9 @@ class LevelUp {
         var locationUrl = `${this.clientUrl}/main.aspx?etn=${this.Xrm.Page.data.entity.getEntityName()}&id=${entityId}&newWindow=true&pagetype=entityrecord`;
         prompt('Ctrl+C to copy. OK to close.', locationUrl);
       }
+      else {
+        alert('This record has not been saved. Please save and run this command again');
+      }
   }
   
   copyRecordId() {
@@ -198,7 +204,7 @@ class LevelUp {
     }
     else {
         let entityName = this.Xrm.Page.data.entity.getEntityName();
-        window.open(`${this.clientUrl}/main.aspx?extraqs=EntityCode%3d${Xrm.Internal.getEntityCode(entityName)}&pagetype=advancedfind`,'_blank');
+        window.open(`${this.clientUrl}/main.aspx?extraqs=EntityCode%3d${this.Xrm.Internal.getEntityCode(entityName)}&pagetype=advancedfind`,'_blank');
     }
   }
   
@@ -247,30 +253,17 @@ class LevelUp {
   }
   
   environmentDetails() {
-    let attributes = `SqlAccessGroupName,ReportingGroupName,
-    PrivReportingGroupName,MaxRecordsForLookupFilters,
-    MaxRecordsForExportToExcel,IsFullTextSearchEnabled,
-    IsUserAccessAuditEnabled,IsDuplicateDetectionEnabled,
-    QuickFindRecordLimitEnabled,IsAutoSaveEnabled,
-    IsPresenceEnabled,IsAuditEnabled,
-    SchemaNamePrefix,DisplayNavigationTour,
-    MaxUploadFileSize`;
-    let entity = 'OrganizationSet';
-    if(this.is2016) {
-      attributes = `sqlaccessgroupname,reportinggroupname,privreportinggroupname,maxrecordsforlookupfilters,
-      maxrecordsforexporttoexcel,isfulltextsearchenabled,isuseraccessauditenabled,isduplicatedetectionenabled,
-      quickfindrecordlimitenabled,isautosaveenabled,ispresenceenabled,isauditenabled,schemanameprefix,
-      displaynavigationtour,maxuploadfilesize,cortanaproactiveexperienceenabled,uselegacyrendering`;
-      entity = 'organizations';
-    }
-    this.fetch(entity, attributes).then((c) => {
+    let entity = this.is2016 ? 'organizations' : 'OrganizationSet';
+    this.fetch(entity).then((c) => {
       let settings = {};
       let settingsArray = [];
       if(c.length > 0){
         settings = c[0];
       }
-      for(let s in settings) { 
-        settingsArray.push({name: s, value: settings[s]});
+      for(let s in settings) {
+        if(s.indexOf('@') == -1 && s.indexOf('_') == -1){
+          settingsArray.push({name: s, value: settings[s]});
+        }
       }
       this.messageExtension(settingsArray, 'settings');      
     }).catch ((err) => {
@@ -352,9 +345,10 @@ class LevelUp {
     entityName = this.Xrm.Page.data.entity.getEntityName();
 
     this.Xrm.Page.data.entity.attributes.forEach(function (c) {
-      var attributeType = c.getAttributeType();
-      var attributeName = c.getName();
-      var attributeValue = c.getValue();
+      let attributeType = c.getAttributeType(),
+          attributeName = c.getName(),
+          attributeValue = c.getValue();
+
       if (!attributeValue || 
       attributeName === 'createdon' || 
       attributeName === 'modifiedon' || 
@@ -364,9 +358,9 @@ class LevelUp {
       attributeName === 'stageid' ||
       attributeName.startsWith('transactioncurrency'))
         return;
-      if (attributeType === 'lookup') {
+      if (attributeType === 'lookup' && !c.getIsPartyList() && attributeValue.length > 0) {
         extraq += (attributeName + 'name=' + attributeValue[0].name + '&');
-        if(attributeName === 'customerid' || attributeName === 'ownerid') {
+        if(c.getLookupTypes().length > 1){
           extraq += (attributeName + 'type=' + attributeValue[0].entityType + '&');
         }
         attributeValue = attributeValue[0].id;
@@ -376,7 +370,7 @@ class LevelUp {
       }
       extraq += (attributeName + '=' + attributeValue + '&');
     });
-    var newWindowUrl = this.clientUrl + '/main.aspx?etn=' + entityName + '&pagetype=entityrecord' + '&extraqs=?' + encodeURIComponent(extraq) + 'etn=' + entityName;
+    var newWindowUrl = this.clientUrl + '/main.aspx?etn=' + entityName + '&pagetype=entityrecord' + '&extraqs=?' + encodeURIComponent(extraq);
     window.open(newWindowUrl);
   }
 
@@ -398,13 +392,32 @@ class LevelUp {
     window.open(`${this.clientUrl}/tools/diagnostics/diag.aspx`,'_blank');
   }
   
-  perfCenter(){
+  perfCenter() {
     Mscrm.Performance.PerformanceCenter.get_instance().TogglePerformanceResultsVisibility();
   }
+
+  toggleTabs() {
+    this.Xrm.Page.ui.tabs.forEach(t => {
+      var currentState = t.getDisplayState();
+      t.setDisplayState(currentState === 'expanded' ? 'collapsed' : 'expanded');
+    });
+  }
+
+  instancePicker() {
+    if(this.Xrm.Page.context.isOffice365()) {
+      window.open(`https://port${this.clientUrl.substr(this.clientUrl.indexOf('.'))}/G/Instances/InstancePicker.aspx?redirect=False`,'_blank');
+    }
+    else{
+      alert('Instance picker is available only for Dynamics 365/Dynamics CRM Online');
+    }
+  }  
 }
 
 var RYR = new LevelUp();
 window.addEventListener('message', function(event) {
+  //home.dynamics.com also messaging. Ignore.
+  if(location.origin !== event.origin) return;
+  
   if(event.source.Xrm && event.data.type){
     RYR.clientUrl = event.source.Xrm.Page.context.getClientUrl();
     //This is for differentiating between OnPrem, OnPrem on IFD or CRM Online

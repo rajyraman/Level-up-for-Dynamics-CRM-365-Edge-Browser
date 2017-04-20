@@ -1,4 +1,5 @@
 class LevelUp {
+
   fetch(entity, attributes, filter) {
       let headers = new Headers({
         "Accept" : "application/json",
@@ -55,69 +56,58 @@ class LevelUp {
       window.open(`${this.clientUrl}/main.aspx?etn=${entityName}&id=${entityId}&newWindow=true&pagetype=entityrecord`, '_blank');
     }
   }
-  
-  displayLogicalNames() {
-      let setLabels = (Xrm) => {
-        Xrm.Page.data.entity.attributes.forEach(a => {
-          a.controls.forEach(function (c) {
-            var lblText = c.getLabel();
-            c.setVisible(true);
-            var attr = a.getName();
-            var lbl = $('#' + c.getName() + '_c').html('');
-            lbl.css('text-align', 'left');
-            if (lbl.is('td')) {
-              lbl.closest('table').children('colgroup').children('col:even').attr('width', '400');
-            }
-            $('<input/>').width(200).val(attr).appendTo(lbl).focus(function () {
-              $(this).select();
-            });
-            $('<span></span>').text(lblText).appendTo(lbl);
-          });
-        });
-      };
-      
-      let waitForJQ = () => {
-        if (this.formWindow.jQuery) {
-          $ = this.formWindow.jQuery.noConflict(true);
-          setLabels(this.Xrm);
-        } else {
-          setTimeout(waitForJQ, 1000);
-        }
-      }
-            
-      this.Xrm.Page.ui.tabs.forEach(function (tab) {
-        tab.setVisible(true);
-        tab.sections.forEach(function (section) {
-          section.setVisible(true);
-        });
-      });
-      
-      var $ = this.formWindow.jQuery || (this.formWindow.CEI && this.formWindow.CEI.$);
-      if (!$) {
-        var head = this.formWindow.document.getElementsByTagName('head').item(0);
-        var s = this.formWindow.document.createElement('script');
-        s.setAttribute('type', 'text/javascript');
-        s.setAttribute('src', 'https://ajax.aspnetcdn.com/ajax/jquery/jquery-1.9.0.js');
-        s.async = false;
-        head.appendChild(s);
-        waitForJQ();
-      } else {
-        setLabels(this.Xrm);
-      }
 
-      this.Xrm.Page.ui.tabs.forEach(t=>{
-        var tabInput = parent.document.createElement('input');
-        tabInput.setAttribute('style', 'width:200px');
-        tabInput.value = t.getName(); 
-        if(tabInput.value){
-          this.formWindow.document.getElementsByName(tabInput.value)[0].prepend(tabInput);
+  newRecord(){
+    let entityName = prompt("Entity?", "");
+    if(entityName){
+      window.open(`${this.clientUrl}/main.aspx?etn=${entityName}&newWindow=true&pagetype=entityrecord`, '_blank');
+    }
+  }
+
+  displayLogicalNames() {
+      this.formDocument.querySelectorAll('.levelupschema').forEach(x => x.remove());
+
+      let createSchemaNameInput = (controlName, controlNode) => {
+          let schemaNameInput = this.formDocument.createElement('input');
+          schemaNameInput.setAttribute('type','text');
+          schemaNameInput.setAttribute('class','levelupschema');
+          schemaNameInput.value = controlName;
+          controlNode.parentNode.insertBefore(schemaNameInput, controlNode);
+      };
+
+      this.Xrm.Page.ui.controls.forEach(c => {
+        let controlName = c.getName(),
+          controlType = c.getControlType(),
+          controlNode = this.formDocument.getElementById(controlName);
+        if(!controlNode){
+          return;
         }
-        t.sections.forEach(s=>{
-          var sectionInput = parent.document.createElement('input'); 
-          sectionInput.setAttribute('style', 'width:200px');
-          sectionInput.value = s.getName(); 
-          if(sectionInput.value){
-            this.formWindow.document.getElementsByName(sectionInput.value)[0].prepend(sectionInput);
+        let parentNodeId = controlNode.getAttribute('aria-describedby');
+        if(!c.getAttribute) {
+          createSchemaNameInput(controlName, this.formDocument.getElementById(`${controlName}_d`));
+        }
+        else {
+          if(!c.getVisible()) {
+            return;
+          }
+          let parentNode = this.formDocument.getElementById(parentNodeId);
+          if(parentNode) {
+            createSchemaNameInput(controlName, parentNode);
+            parentNode.style.overflow = 'hidden';
+          }
+        }
+      });
+
+      this.Xrm.Page.ui.tabs.forEach(t => {
+        let tabName = t.getName();
+        if(t.getVisible()){
+          createSchemaNameInput(tabName, this.formDocument.querySelector(`div[name="${tabName}"]`));
+        }
+        
+        t.sections.forEach(s => {
+          let sectionName = s.getName();
+          if(s.getVisible()) {
+            createSchemaNameInput(sectionName, this.formDocument.querySelector(`table[name="${sectionName}"]`));
           }
         });
       });      
@@ -148,9 +138,9 @@ class LevelUp {
   }
   
   copyRecordUrl() {
-      var entityId = this.Xrm.Page.data.entity.getId();
+      let entityId = this.Xrm.Page.data.entity.getId();
       if (entityId) {
-        var locationUrl = `${this.clientUrl}/main.aspx?etn=${this.Xrm.Page.data.entity.getEntityName()}&id=${entityId}&newWindow=true&pagetype=entityrecord`;
+        let locationUrl = `${this.clientUrl}/main.aspx?etn=${this.Xrm.Page.data.entity.getEntityName()}&id=${entityId}&newWindow=true&pagetype=entityrecord`;
         prompt('Ctrl+C to copy. OK to close.', locationUrl);
       }
       else {
@@ -159,9 +149,9 @@ class LevelUp {
   }
   
   copyRecordId() {
-      var entityId = this.Xrm.Page.data.entity.getId();
+      let entityId = this.Xrm.Page.data.entity.getId();
       if (entityId) {
-        prompt('Ctrl+C to copy. OK to close.', this.Xrm.Page.data.entity.getId());
+        prompt('Ctrl+C to copy. OK to close.', entityId); 
       }
       else{
         alert('This record has not been saved. Please save and run this command again');
@@ -222,8 +212,12 @@ class LevelUp {
   }
   
   populateMin(){
+    if(this.Xrm.Page.ui.getFormType() !== 1){
+      alert('This action cannot be run against an existing record.');
+      return;
+    }
     this.Xrm.Page.data.entity.attributes.forEach(a => {
-      if (a.getRequiredLevel() === 'required') {
+      if (a.getRequiredLevel() === 'required' && !a.getValue()) {
         switch (a.getAttributeType()) {
             case 'memo':
               a.setValue('memo');
@@ -268,7 +262,7 @@ class LevelUp {
       this.messageExtension(settingsArray, 'settings');      
     }).catch ((err) => {
       console.log(err);
-    });    
+    });
   }
 
   myUserRecord(){
@@ -276,7 +270,7 @@ class LevelUp {
   }
 
   myRoles(){
-    let resultsArray = [{cells: ['Role Id', 'Name']}];
+    let resultsArray = [{cells: ['Name','Role Id']}];
     let attributes = 'RoleId,Name';
     let entity = 'RoleSet';
     let filter = Xrm.Page.context.getUserRoles().map(x=>`RoleId eq (guid'${x}')`).join(' or ');
@@ -288,7 +282,7 @@ class LevelUp {
     this.fetch(entity, attributes, filter)
     .then((results) => {
       results.forEach(r=>{
-        resultsArray.push({cells: Object.keys(r).filter(x=> !x.startsWith('@') && !x.startsWith('_')).map(key=> r[key])});
+        resultsArray.push({cells: Object.keys(r).sort().filter(x=> !x.startsWith('@') && !x.startsWith('_')).map(key=> r[key])});
       });
       this.messageExtension(resultsArray, 'userroles');            
     }).catch ((err) => {
@@ -316,7 +310,7 @@ class LevelUp {
   }
 
   optionSetValues() {
-    this.Xrm.Page.ui.controls.forEach(function (c) {
+    this.Xrm.Page.getControl().forEach(c => {
 			if (c.getControlType() !== 'optionset')
 				return;
 			let attribute = c.getAttribute(),
@@ -337,14 +331,24 @@ class LevelUp {
 			if (selectedOptionValue && isClearOptions) {
 				attribute.setValue(selectedOptionValue);
 			}
+      let selectElement = this.formDocument.getElementById(`${attribute.getName()}_i`);
+			if (selectElement) {
+				selectElement.parentElement.removeAttribute('style');
+				selectElement.parentElement.removeAttribute('class');
+			}
 		});
   }
 
   cloneRecord() {
     let extraq = '',
-    entityName = this.Xrm.Page.data.entity.getEntityName();
-
+        entityName = this.Xrm.Page.data.entity.getEntityName(),
+        fieldCount = 0,
+        isFieldCountLimitExceeded = false;
     this.Xrm.Page.data.entity.attributes.forEach(function (c) {
+      if(fieldCount > 45){
+        isFieldCountLimitExceeded = true;
+        return;
+      }
       let attributeType = c.getAttributeType(),
           attributeName = c.getName(),
           attributeValue = c.getValue();
@@ -356,12 +360,17 @@ class LevelUp {
       attributeName === 'modifiedby' ||
       attributeName === 'processid' ||
       attributeName === 'stageid' ||
+      attributeName === 'ownerid' ||
       attributeName.startsWith('transactioncurrency'))
         return;
       if (attributeType === 'lookup' && !c.getIsPartyList() && attributeValue.length > 0) {
         extraq += (attributeName + 'name=' + attributeValue[0].name + '&');
-        if(c.getLookupTypes().length > 1){
+        fieldCount++;
+        if(attributeName === 'customerid' || 
+            attributeName === 'parentcustomerid' ||
+            (typeof c.getLookupTypes === 'function' && c.getLookupTypes().length > 1)){
           extraq += (attributeName + 'type=' + attributeValue[0].entityType + '&');
+          fieldCount++;
         }
         attributeValue = attributeValue[0].id;
       }
@@ -369,9 +378,15 @@ class LevelUp {
         attributeValue = attributeValue.toDateString();
       }
       extraq += (attributeName + '=' + attributeValue + '&');
+      fieldCount++;
     });
-    var newWindowUrl = this.clientUrl + '/main.aspx?etn=' + entityName + '&pagetype=entityrecord' + '&extraqs=?' + encodeURIComponent(extraq);
-    window.open(newWindowUrl);
+    if(isFieldCountLimitExceeded){
+      alert('This form contains more than 45 fields and cannot be cloned');
+    }
+    else{
+      var newWindowUrl = this.clientUrl + '/main.aspx?etn=' + entityName + '&pagetype=entityrecord' + '&extraqs=?' + encodeURIComponent(extraq);
+      window.open(newWindowUrl);
+    }
   }
 
   refresh(){
@@ -410,7 +425,197 @@ class LevelUp {
     else{
       alert('Instance picker is available only for Dynamics 365/Dynamics CRM Online');
     }
-  }  
+  }
+
+  workflows() {
+    let attributes = 'WorkflowId,Name,Category,Mode,IsManaged,StateCode',
+        entityName = this.Xrm.Page.data.entity.getEntityName(),
+        entitySetName = this.is2016 ? 'workflows' : 'WorkflowSet';        
+    if(this.is2016){
+      attributes = attributes.toLowerCase();
+    }
+    let filter = this.is2016 ? `type eq 1 and ( category eq 2 or  category eq 0) and  primaryentity eq '${entityName}'` : 
+    `Type/Value eq 1 and PrimaryEntity eq '${entityName}' and (Category/Value eq 0 or Category/Value eq 2)`;
+    this.fetch(entitySetName, attributes, filter).then((workflows) => {
+      //CRM2015 Data doesn't return attributes in order specified on select
+      let results = workflows.map(workflow => {
+      let resultRow = [
+          {key: 'workflowid', value: ''}, 
+          {key: 'name', value: ''}, 
+          {key: 'category', value: ''}, 
+          {key: 'mode', value: ''}, 
+          {key: 'ismanaged', value: ''}, 
+          {key: 'statecode', value: ''}
+        ];
+        Object.keys(workflow)
+        .filter(o => o.indexOf('_') == -1 && o.indexOf('@') == -1)
+        .forEach(p => {
+          let keyName = p.toLowerCase(),
+          workflowKeyValue = workflow[p];
+          if(keyName === 'category'){
+            workflowKeyValue = (workflowKeyValue === 0 || workflowKeyValue.Value === 0)? 'Process' : 'Business Rule';
+          }
+          else if(keyName === 'mode'){
+            workflowKeyValue = (workflowKeyValue === 0 || workflowKeyValue.Value === 0) ? 'Background' : 'Real-time';
+          }
+          else if(keyName === 'ismanaged'){
+            workflowKeyValue = (workflowKeyValue || workflowKeyValue.Value) ? 'Managed' : 'Unmanaged';
+          }
+          else if(keyName === 'statecode'){
+            workflowKeyValue = (workflowKeyValue === 0 || workflowKeyValue.Value === 0)? 'Draft' : 'Activated';
+          }        
+          else if(keyName === 'workflowid'){
+            workflowKeyValue = `${this.clientUrl}/main.aspx?etn=workflow&id=${workflowKeyValue}&newWindow=true&pagetype=entityrecord`;;
+          }
+          resultRow.find(k=>k.key === keyName).value = workflowKeyValue;
+        });
+        return resultRow;
+      });
+      this.messageExtension(results, 'workflows');      
+    }).catch ((err) => {
+      console.log(err);
+    });
+  }
+
+  copyLookup() {
+      let currentControl = this.Xrm.Page.ui.getCurrentControl();
+      if (currentControl && currentControl.getControlType() === 'lookup') {
+        let currentLookup = currentControl.getAttribute().getValue();
+        if (currentLookup) {
+          let serialisedLookupValue = JSON.stringify(
+            currentLookup.map(x => {
+              let c = {};
+              ({
+                id : c.id,
+                name : c.name,
+                type : c.type,
+                typename : c.typename,
+                entityType : c.entityType
+              } = x);
+              return c;
+            }));
+          sessionStorage.setItem('ryr_serialisedLookup', serialisedLookupValue);
+          alert('Lookup copied. Ready to paste');
+        }
+      } else {
+        alert('No field has been selected or the currently selected field is not a lookup');
+      }
+  }
+
+  pasteLookup() {
+      let currentControl = this.Xrm.Page.ui.getCurrentControl();
+      if (currentControl && currentControl.getControlType() === 'lookup') {
+        let currentLookup = currentControl.getAttribute();
+        let copiedLookupValue = sessionStorage.getItem('ryr_serialisedLookup');
+        if (copiedLookupValue) {
+          currentLookup.setValue(JSON.parse(copiedLookupValue));
+        } else {
+          alert('Please select a lookup to copy first before pasting');
+        }
+      } else {
+        alert('No field has been selected or the currently selected field is not a lookup');
+      }
+  }
+
+  openLookupNewWindow() {
+      var currentControl = this.Xrm.Page.ui.getCurrentControl();
+      if (currentControl.getControlType() === 'lookup') {
+        var currentLookup = currentControl.getAttribute().getValue();
+        if (currentLookup) {
+          var entityName = currentLookup[0].type,
+          entityId = currentLookup[0].id;
+          var url = `${this.clientUrl}/main.aspx?etc=${entityName}&id=${entityId}&newWindow=true&pagetype=entityrecord`;
+          window.open(url, '_blank');
+        }
+      } else {
+        alert('The currently selected control is not a lookup');
+      }
+  }
+
+  openGrid(){
+    let currentView = this.formDocument.querySelector('span.ms-crm-View-Name'),
+        etc = this.Xrm.Page.context.getQueryStringParameters().etc;
+    if(currentView && etc){
+      let viewType = currentView.getAttribute('currentviewtype'),
+          viewId = currentView.getAttribute('currentview'),
+          viewUrl = `${this.clientUrl}/main.aspx?etc=${etc}&viewtype=${viewType}&viewid=${viewId}&newWindow=true&pagetype=entitylist`;
+      window.open(viewUrl, '_blank');
+    }
+    else {
+      alert('The current page is not a grid');
+    }
+  }
+
+  customize(){
+    let etc = this.Xrm.Page.context.getQueryStringParameters().etc;
+    if(etc && Mscrm.RibbonActions.openEntityEditor && typeof Mscrm.RibbonActions.openEntityEditor === 'function'){
+      Mscrm.RibbonActions.openEntityEditor(etc);
+    }
+  }
+
+  allFields(){
+    Sdk.Async.retrieve(
+      this.Xrm.Page.data.entity.getEntityName(),
+      this.Xrm.Page.data.entity.getId().substr(1,36),
+      new Sdk.ColumnSet(true),
+      entity => { 
+        console.log(entity);
+        let attributes = entity.getAttributes()
+          ,formattedAttributes = entity.getFormattedValues()
+          ,attributeNames = attributes.getNames()
+          ,formAttributes = this.Xrm.Page.getAttribute().map(x=>x.getName())
+          ,attributesNotInForm = attributeNames.filter(x=>!formAttributes.includes(x)),
+          resultsArray = [{cells: ['Attribute Name', 'Value']}];
+
+        let attributeValues = attributesNotInForm.forEach(x=>{
+          let attribute = attributes.getAttributeByName(x),
+              attributeValue = attribute.getValue();
+          if(formattedAttributes.containsName(x)){
+            let formattedValue = formattedAttributes.getItem(x).getValue();
+            if(formattedValue) {
+              resultsArray.push({cells: [x, formattedAttributes.getItem(x).getValue()]});
+            }
+          }
+          else{
+            resultsArray.push({cells: [x, attribute.getType() !== 'entityReference' ? attributeValue : attributeValue.getName() || attributeValue.getId()]});
+          }
+        });
+        this.messageExtension(resultsArray, 'allfields');                    
+    },error=>console.log(error));
+  }
+
+  quickFindFields(){
+    let currentView = this.formDocument.querySelector('span.ms-crm-View-Name'),
+        resultsArray = [{cells: ['Quick Find Attribute']}],
+        etc = this.Xrm.Page.context.getQueryStringParameters().etc,
+        entityName = this.Xrm.Internal.getEntityName(parseInt(etc));
+    if(currentView && etc){
+      let viewType = currentView.getAttribute('currentviewtype'),
+          attributes = 'FetchXml',
+          entitySetName = this.is2016 ? 'savedqueries' : 'SavedQuerySet';        
+      if(this.is2016){
+        attributes = attributes.toLowerCase();
+      }
+      let filter = this.is2016 ? `isquickfindquery eq true and querytype eq 4 and returnedtypecode eq '${entityName}'` : 
+      `IsQuickFindQuery eq true and QueryType eq 4 and ReturnedTypeCode eq '${entityName}'`;
+      this.fetch(entitySetName, attributes, filter).then((view) => {
+        let quickFindFields = [];
+        if(this.is2016) {
+          quickFindFields = Array.from(new DOMParser().parseFromString(view[0].fetchxml, "text/html").querySelectorAll('condition'))
+                                .map(x=>x.getAttribute('attribute'));
+        }
+        else {
+          quickFindFields = Array.from(new DOMParser().parseFromString(view[0].FetchXml, "text/html").querySelectorAll('condition'))
+                                .map(x=>x.getAttribute('attribute'));
+        }
+        quickFindFields.forEach(x=>resultsArray.push({cells:[x]}));
+        this.messageExtension(resultsArray, 'quickFindFields');
+      });
+    }
+    else {
+      alert('The current page is not a grid');
+    }
+  } 
 }
 
 var RYR = new LevelUp();
@@ -433,6 +638,7 @@ window.addEventListener('message', function(event) {
       
     if (contentPanels && contentPanels.length > 0) {
       RYR.formWindow = contentPanels[0].contentWindow;
+      RYR.formDocument = contentPanels[0].contentDocument;
       RYR.Xrm = RYR.formWindow.Xrm;
     }
 

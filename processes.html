@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <title>Workflows and Business Rules</title>
     <style>
         body {
             font-family: "Segoe UI" , "Segoe" , Tahoma, Helvetica, Arial, sans-serif;
@@ -27,32 +28,28 @@
         td{
             padding: 0.5em;
         }
-        input {
-            font-family: "Segoe UI" , "Segoe" , Tahoma, Helvetica, Arial, sans-serif;
-            border: solid 1px #ccc;
-            border-radius: 5px;
-            padding: 5px 5px;
-            width: 300px;
-            margin-bottom: 15px;
-        }
-        input:focus {
-            outline: none;
-            border-color: #aaa;
-        }        
     </style>
 </head>
 <body>
-    <h2 id="header"></h2>
-    <div id="grid">
-        <input class="search" placeholder="Search" />
+    <h2>Workflows &amp; Business Rules</h2>
+    <div>
         <table>
-            <thead id="tableheader">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Execution</th>
+                <th>Managed/Unmanaged</th>
+                <th>Status</th>                
+            </tr>
             </thead>
-            <tbody id="results" class="list">
+            <tbody id="results">
+            <tr>
+                <td colspan="5">No workflows/business rules found for this entity</td>
+            </tr>
             </tbody>
         </table>
     </div>
-    <script src="list.min.js"></script>
-    <script src="grid.js"></script>
 </body>
+<script src="processes.js"></script>
 </html>

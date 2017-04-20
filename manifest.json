@@ -38,8 +38,8 @@
         "http://*/*",
         "https://*/*"
     ],
-    "version": "1.0",
-    "version_name": "1.0 beta",
+    "version": "2.2",
+    "version_name": "2.2",
     "web_accessible_resources": [
         "crmmethods.js"
     ],

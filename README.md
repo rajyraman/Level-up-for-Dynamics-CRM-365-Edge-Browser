@@ -1,3 +1,6 @@
+# Archived
+This repository is no longer maintained. Please use the main repo for the extension which can build for the various platforms -> https://github.com/rajyraman/Levelup-for-Dynamics-CRM
+
 # Summary
 Edge Extension for Dynamics CRM/365 Power users
 
